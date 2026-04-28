@@ -90,12 +90,16 @@ jobs:
         run: |
           gcloud container clusters get-credentials ${GKE_CLUSTER} \
             --region=${GKE_REGION} --project=${PROJECT_ID}
-      - name: Mettre à jour le GPS Producer
+      - name: Créer le namespace si nécessaire
+        run: kubectl create namespace logistream --dry-run=client -o yaml | kubectl apply -f -
+      - name: Déployer les ressources de base (ConfigMap, Secret, etc.)
+        run: kubectl apply -f k8s/ -n logistream
+      - name: Mettre à jour l'image du GPS Producer
         run: |
           kubectl set image deployment/gps-producer \
             gps-producer=${{ needs.build-push.outputs.producer-tag }} \
             -n logistream
-      - name: Mettre à jour le Tracker Consumer
+      - name: Mettre à jour l'image du Tracker Consumer
         run: |
           kubectl set image deployment/tracker-consumer \
             tracker-consumer=${{ needs.build-push.outputs.consumer-tag }} \
