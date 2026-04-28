@@ -38,8 +38,8 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     outputs:
-      producer-tag: ${{ steps.tags.outputs.producer-tag }}
-      consumer-tag: ${{ steps.tags.outputs.consumer-tag }}
+      producer-tag: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/tp2-registry/gps-producer:${{ github.sha }}
+      consumer-tag: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/tp2-registry/tracker-consumer:${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - name: Authentification GCP
@@ -49,28 +49,18 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Configurer Docker
         run: gcloud auth configure-docker ${REGISTRY} --quiet
-      - name: Générer les tags d'image
-        id: tags
-        run: |
-          SHA="${{ github.sha }}"
-          P_ID="${{ env.PROJECT_ID }}"
-          REG="${{ env.REGISTRY }}"
-          PRODUCER_TAG="${REG}/${P_ID}/tp2-registry/gps-producer:${SHA}"
-          CONSUMER_TAG="${REG}/${P_ID}/tp2-registry/tracker-consumer:${SHA}"
-          
-          echo "PRODUCER_TAG: $PRODUCER_TAG"
-          echo "CONSUMER_TAG: $CONSUMER_TAG"
-          
-          echo "producer-tag=$PRODUCER_TAG" >> $GITHUB_OUTPUT
-          echo "consumer-tag=$CONSUMER_TAG" >> $GITHUB_OUTPUT
       - name: Build & Push GPS Producer
         run: |
-          docker build -t ${{ steps.tags.outputs.producer-tag }} ./producer/
-          docker push ${{ steps.tags.outputs.producer-tag }}
+          TAG="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/tp2-registry/gps-producer:${{ github.sha }}"
+          echo "Building $TAG"
+          docker build -t $TAG ./producer/
+          docker push $TAG
       - name: Build & Push Tracker Consumer
         run: |
-          docker build -t ${{ steps.tags.outputs.consumer-tag }} ./consumer/
-          docker push ${{ steps.tags.outputs.consumer-tag }}
+          TAG="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/tp2-registry/tracker-consumer:${{ github.sha }}"
+          echo "Building $TAG"
+          docker build -t $TAG ./consumer/
+          docker push $TAG
 
   # === Job 3: Deploy sur GKE ===
   deploy:
@@ -95,23 +85,17 @@ jobs:
           echo "TAG PRODUCER: ${{ needs.build-push.outputs.producer-tag }}"
           echo "TAG CONSUMER: ${{ needs.build-push.outputs.consumer-tag }}"
           if [ -z "${{ needs.build-push.outputs.producer-tag }}" ]; then
-            echo "❌ ERREUR : Le tag de l'image est vide !"
+            echo "❌ ERREUR : Le tag est encore vide !"
             exit 1
           fi
       - name: Créer le namespace si nécessaire
         run: kubectl create namespace logistream --dry-run=client -o yaml | kubectl apply -f -
       - name: Déployer les ressources de base
         run: kubectl apply -f k8s/ -n logistream
-      - name: Mettre à jour l'image du GPS Producer
+      - name: Mettre à jour les images
         run: |
-          kubectl set image deployment/gps-producer \
-            gps-producer=${{ needs.build-push.outputs.producer-tag }} \
-            -n logistream
-      - name: Mettre à jour l'image du Tracker Consumer
-        run: |
-          kubectl set image deployment/tracker-consumer \
-            tracker-consumer=${{ needs.build-push.outputs.consumer-tag }} \
-            -n logistream
+          kubectl set image deployment/gps-producer gps-producer=${{ needs.build-push.outputs.producer-tag }} -n logistream
+          kubectl set image deployment/tracker-consumer tracker-consumer=${{ needs.build-push.outputs.consumer-tag }} -n logistream
       - name: Attendre les déploiements
         run: |
           kubectl rollout status deployment/gps-producer -n logistream --timeout=5m
