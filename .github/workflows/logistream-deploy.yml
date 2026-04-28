@@ -42,14 +42,6 @@ jobs:
       consumer-tag: ${{ steps.tags.outputs.consumer-tag }}
     steps:
       - uses: actions/checkout@v4
-      - name: Vérification du Secret (Diagnostic)
-        run: |
-          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "❌ ERREUR : Le secret GCP_SA_KEY est VIDE ou INTROUVABLE."
-            exit 1
-          else
-            echo "✅ Le secret GCP_SA_KEY est bien présent."
-          fi
       - name: Authentification GCP
         uses: google-github-actions/auth@v2
         with:
@@ -61,8 +53,16 @@ jobs:
         id: tags
         run: |
           SHA="${{ github.sha }}"
-          echo "producer-tag=${REGISTRY}/${PROJECT_ID}/tp2-registry/gps-producer:${SHA}" >> $GITHUB_OUTPUT
-          echo "consumer-tag=${REGISTRY}/${PROJECT_ID}/tp2-registry/tracker-consumer:${SHA}" >> $GITHUB_OUTPUT
+          P_ID="${{ env.PROJECT_ID }}"
+          REG="${{ env.REGISTRY }}"
+          PRODUCER_TAG="${REG}/${P_ID}/tp2-registry/gps-producer:${SHA}"
+          CONSUMER_TAG="${REG}/${P_ID}/tp2-registry/tracker-consumer:${SHA}"
+          
+          echo "PRODUCER_TAG: $PRODUCER_TAG"
+          echo "CONSUMER_TAG: $CONSUMER_TAG"
+          
+          echo "producer-tag=$PRODUCER_TAG" >> $GITHUB_OUTPUT
+          echo "consumer-tag=$CONSUMER_TAG" >> $GITHUB_OUTPUT
       - name: Build & Push GPS Producer
         run: |
           docker build -t ${{ steps.tags.outputs.producer-tag }} ./producer/
@@ -90,9 +90,17 @@ jobs:
         run: |
           gcloud container clusters get-credentials ${GKE_CLUSTER} \
             --region=${GKE_REGION} --project=${PROJECT_ID}
+      - name: Vérifier les tags reçus
+        run: |
+          echo "TAG PRODUCER: ${{ needs.build-push.outputs.producer-tag }}"
+          echo "TAG CONSUMER: ${{ needs.build-push.outputs.consumer-tag }}"
+          if [ -z "${{ needs.build-push.outputs.producer-tag }}" ]; then
+            echo "❌ ERREUR : Le tag de l'image est vide !"
+            exit 1
+          fi
       - name: Créer le namespace si nécessaire
         run: kubectl create namespace logistream --dry-run=client -o yaml | kubectl apply -f -
-      - name: Déployer les ressources de base (ConfigMap, Secret, etc.)
+      - name: Déployer les ressources de base
         run: kubectl apply -f k8s/ -n logistream
       - name: Mettre à jour l'image du GPS Producer
         run: |
