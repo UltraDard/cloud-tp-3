@@ -1,0 +1,58 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: kafka-nodes
+  namespace: logistream
+  labels:
+    strimzi.io/cluster: logistream-kafka
+spec:
+  replicas: 3
+  roles:
+    - broker
+    - controller
+  storage:
+    type: persistent-claim
+    size: 20Gi
+    deleteClaim: true
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1"
+---
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: logistream-kafka
+  namespace: logistream
+  annotations:
+    strimzi.io/kraft: "enabled"
+    strimzi.io/node-pools: "enabled"
+spec:
+  kafka:
+    version: 3.7.0
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: external
+        port: 9094
+        type: loadbalancer
+        tls: false
+    config:
+      num.partitions: 3
+      default.replication.factor: 3
+      min.insync.replicas: 2
+      log.retention.hours: 168
+      message.max.bytes: 10240
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+
+
+
+
+

@@ -1,0 +1,53 @@
+# Deployment du GPS Producer (simule la flotte de camions)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gps-producer
+  namespace: logistream
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gps-producer
+  template:
+    metadata:
+      labels:
+        app: gps-producer
+    spec:
+      containers:
+        - name: gps-producer
+          image: europe-west9-docker.pkg.dev/ynov-cloud-2026/tp2-registry/gps-producer:v1
+          envFrom:
+            - configMapRef:
+                name: logistream-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+---
+# Deployment du Tracker Consumer (traite les positions GPS)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracker-consumer
+  namespace: logistream
+spec:
+  replicas: 3 # 3 réplicas = 3 instances dans le même Consumer Group
+  selector:
+    matchLabels:
+      app: tracker-consumer
+  template:
+    metadata:
+      labels:
+        app: tracker-consumer
+    spec:
+      containers:
+        - name: tracker-consumer
+          image: europe-west9-docker.pkg.dev/ynov-cloud-2026/tp2-registry/tracker-consumer:v1
+          envFrom:
+            - configMapRef:
+                name: logistream-config
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
