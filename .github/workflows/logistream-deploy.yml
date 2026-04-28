@@ -42,6 +42,14 @@ jobs:
       consumer-tag: ${{ steps.tags.outputs.consumer-tag }}
     steps:
       - uses: actions/checkout@v4
+      - name: Vérification du Secret (Diagnostic)
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "❌ ERREUR : Le secret GCP_SA_KEY est VIDE ou INTROUVABLE."
+            exit 1
+          else
+            echo "✅ Le secret GCP_SA_KEY est bien présent."
+          fi
       - name: Authentification GCP
         uses: google-github-actions/auth@v2
         with:
