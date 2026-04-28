@@ -22,7 +22,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       - name: Installer les dépendances (Producer)
         run: cd producer && npm ci
       - name: Installer les dépendances (Consumer)
