@@ -1,4 +1,4 @@
-﻿# TP 3 - Kubernetes (GKE), Apache Kafka & Pipeline CI/CD
+# TP 3 - Kubernetes (GKE), Apache Kafka & Pipeline CI/CD
 
 **Cours 3 | Développer pour le Cloud | YNOV Campus Montpellier - Master 2**
 
@@ -1060,13 +1060,22 @@ Dans la console GCP (**Monitoring â†’ Alerting â†’ Create Policy**) :
 
 | Métrique | Valeur observée |
 | :--- | :--- |
-| CPU moyen tracker-consumer | 12% |
-| RAM moyenne tracker-consumer | 180 Mi |
+| CPU moyen tracker-consumer | 45m (~22% de la ressource allouée) |
+| RAM moyenne tracker-consumer | 20 Mi |
 | Pods HPA actifs au repos | 2 |
 
 > **Question :** Vous observez que le consumer lag sur `truck-positions` monte progressivement au cours du temps. Vous avez 3 instances du `tracker-consumer` (3 réplicas). Quelles sont les 3 actions à envisager dans l'ordre pour résoudre ce problème ?
 >
 > **Réponse :** 1. Augmenter le nombre de réplicas du consumer (jusqu'à 6). 2. Augmenter le nombre de partitions du topic si le lag persiste à 6 réplicas. 3. Optimiser le code du consumer (batching, parallélisme).
+
+---
+
+### 🔧 Correctifs d'infrastructure (Post-déploiement)
+
+Lors de la mise en œuvre, les points suivants ont été corrigés pour assurer la stabilité :
+1.  **Configuration Strimzi** : L'opérateur a été patché pour surveiller le namespace `logistream` (par défaut il ne surveillait que le namespace `kafka`).
+2.  **Version Kafka** : Passage à la version `4.2.0` pour assurer la compatibilité avec l'opérateur Strimzi `0.51.0`.
+3.  **Gestion des Topics** : Ajout du manifest `kafkatopic.yaml` pour le topic `truck-positions` avec 6 partitions pour optimiser le parallélisme du consumer group.
 
 ---
 
